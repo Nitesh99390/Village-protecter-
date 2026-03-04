@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKY GUARD: ULTIMATE</title>
-    <meta name="version" content="2.1.0"> 
+    <title>SKY GUARD: MULTIVERSE</title>
+    <meta name="version" content="3.0.0"> 
     <style>
         :root {
             --neon-blue: #00d2ff;
@@ -19,7 +19,6 @@
         }
         canvas { display: block; filter: saturate(1.2) contrast(1.1); }
         
-        /* Glassmorphism UI */
         .overlay {
             position: absolute; inset: 0; display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 2000;
@@ -36,7 +35,8 @@
             box-shadow: 0 0 15px rgba(0,210,255,0.2);
         }
         .btn:active { transform: scale(0.95); }
-        .btn-play { border-color: var(--neon-pink); color: var(--neon-pink); box-shadow: 0 0 20px rgba(255,0,127,0.3); }
+        .btn-play { border-color: var(--neon-pink); color: var(--neon-pink); }
+        .btn-switch { border-color: #a020f0; color: #a020f0; } /* Purple color for new game */
 
         #hud {
             position: absolute; top: 15px; left: 15px; color: white; z-index: 1000;
@@ -45,60 +45,41 @@
         .hud-item { 
             background: var(--glass); padding: 8px 18px; border-radius: 12px; 
             border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px);
-            font-variant-numeric: tabular-nums;
         }
-
-        /* Power-up Progress Bar */
-        #power-bar {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 200px; height: 6px; background: rgba(255,255,255,0.1);
-            border-radius: 10px; display: none; overflow: hidden;
-        }
-        #power-fill { width: 100%; height: 100%; background: var(--neon-gold); box-shadow: 0 0 10px var(--neon-gold); }
     </style>
 </head>
 <body>
 
     <div id="hud">
         <div class="hud-item" style="font-size: 22px; font-weight: 900; border-left: 4px solid var(--neon-pink);">SCORE: <span id="scoreVal">0</span></div>
-        <div class="hud-item" style="color:var(--neon-blue)">LEVEL: <span id="levelVal">1</span></div>
-        <div class="hud-item" style="color:var(--neon-gold)">💰 COINS: <span id="coinVal">0</span></div>
+        <div class="hud-item" id="modeLabel" style="color:var(--neon-blue)">MODE: SKY GUARD</div>
     </div>
-
-    <div id="power-bar"><div id="power-fill"></div></div>
 
     <div id="menu" class="overlay">
         <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="font-size: 56px; letter-spacing: 8px; color: var(--neon-blue); margin: 0; text-shadow: 0 0 20px var(--neon-blue);">SKY<br>GUARD</h1>
-            <p id="bestScore" style="color: #888; letter-spacing: 2px;">BEST RECORD: 0</p>
+            <h1 id="menuTitle" style="font-size: 46px; letter-spacing: 5px; color: var(--neon-blue); margin: 0;">SKY GUARD</h1>
+            <p id="bestScore" style="color: #888;">READY FOR MISSION?</p>
         </div>
         <div class="btn-group">
-            <button class="btn btn-play" onclick="startGame()">INITIALIZE MISSION</button>
-            <button class="btn" style="border-color: var(--neon-gold); color: var(--neon-gold);" onclick="alert('Shop coming in next update!')">ARSENAL STORE</button>
+            <button class="btn btn-play" id="mainPlayBtn" onclick="startGame()">START MISSION</button>
+            <button class="btn btn-switch" onclick="toggleGameMode()">🚀 SWITCH TO SPACE ATTACK</button>
+            <button class="btn" style="border-color: var(--neon-gold); color: var(--neon-gold);" onclick="alert('Store coming soon!')">ARSENAL</button>
         </div>
-        <p style="position: absolute; bottom: 20px; font-size: 10px; color: #444;">v2.1.0 • GITHUB DEPLOYED</p>
     </div>
 
     <canvas id="canvas"></canvas>
 
 <script>
-/**
- * REASON FOR NOT UPDATING:
- * Mobile browsers cache GitHub pages heavily. 
- * Solution: This script uses a 'Cache Buster' logic in the version meta tag.
- */
-
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const scoreVal = document.getElementById('scoreVal');
-const levelVal = document.getElementById('levelVal');
-const coinVal = document.getElementById('coinVal');
 const menu = document.getElementById('menu');
+const modeLabel = document.getElementById('modeLabel');
 
-let width, height, player, items, particles, gameActive = false;
-let score = 0, level = 1, coins = 0, speedMultiplier = 1;
+let width, height, player, items, gameActive = false;
+let score = 0, speedMultiplier = 1;
+let currentGameMode = "SKY_GUARD"; // Modes: SKY_GUARD or SPACE_ATTACK
 
-// Resize handling
 function resize() {
     width = canvas.width = window.innerWidth;
     height = canvas.height = window.innerHeight;
@@ -106,119 +87,139 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// --- PUREL NEW GAME LOGIC (Space Attack) ---
+class Bullet {
+    constructor(x, y) {
+        this.x = x; this.y = y; this.r = 4; this.speed = 10;
+    }
+    update() { this.y -= this.speed; }
+    draw() {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+// --- ORIGINAL GAME CLASSES (Sky Guard) ---
 class Player {
     constructor() {
-        this.w = 80;
-        this.h = 12;
-        this.x = width / 2 - this.w / 2;
-        this.y = height - 60;
-        this.color = '#00d2ff';
+        this.w = 80; this.h = 12;
+        this.x = width/2 - 40; this.y = height - 60;
+        this.bullets = [];
     }
     draw() {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.roundRect(this.x, this.y, this.w, this.h, 10);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        
-        // Paddle Highlight
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.fillRect(this.x + 10, this.y + 3, this.w - 20, 2);
+        ctx.fillStyle = currentGameMode === "SKY_GUARD" ? '#00d2ff' : '#ff007f';
+        ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, this.h, 10); ctx.fill();
+        if(currentGameMode === "SPACE_ATTACK") {
+            // Add a "Ship" look
+            ctx.fillRect(this.x + 35, this.y - 10, 10, 10);
+        }
     }
 }
 
 class Item {
     constructor() {
-        this.size = Math.random() * 15 + 10;
+        this.size = Math.random() * 20 + 15;
         this.x = Math.random() * (width - this.size);
         this.y = -50;
-        this.speed = (Math.random() * 3 + 2) * speedMultiplier;
-        this.type = Math.random() > 0.15 ? 'point' : 'coin';
-        this.color = this.type === 'point' ? '#ff007f' : '#ffcc00';
+        this.speed = (Math.random() * 2 + 2) * speedMultiplier;
+        this.health = 3; // For Space Mode
     }
-    update() {
-        this.y += this.speed;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
-        ctx.fillStyle = this.color;
-        if(this.type === 'coin') {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size/2, 0, Math.PI*2);
-            ctx.fill();
-        } else {
+    update() { this.y += this.speed; }
+    draw() {
+        ctx.fillStyle = currentGameMode === "SKY_GUARD" ? '#ff007f' : '#33ff33';
+        if(currentGameMode === "SKY_GUARD") {
             ctx.fillRect(this.x, this.y, this.size, this.size);
+        } else {
+            // Meteor look for Space Mode
+            ctx.beginPath(); ctx.arc(this.x + 10, this.y + 10, 15, 0, Math.PI*2); ctx.fill();
         }
-        ctx.shadowBlur = 0;
+    }
+}
+
+// --- CORE CONTROLS ---
+function toggleGameMode() {
+    if(currentGameMode === "SKY_GUARD") {
+        currentGameMode = "SPACE_ATTACK";
+        document.getElementById('menuTitle').innerText = "SPACE ATTACK";
+        document.getElementById('menuTitle').style.color = "#ff007f";
+        modeLabel.innerText = "MODE: SPACE ATTACK";
+    } else {
+        currentGameMode = "SKY_GUARD";
+        document.getElementById('menuTitle').innerText = "SKY GUARD";
+        document.getElementById('menuTitle').style.color = "#00d2ff";
+        modeLabel.innerText = "MODE: SKY GUARD";
     }
 }
 
 function startGame() {
-    score = 0; level = 1; speedMultiplier = 1;
-    items = []; particles = [];
-    player = new Player();
+    score = 0; scoreVal.innerText = "0";
+    speedMultiplier = 1; items = []; player = new Player();
     gameActive = true;
     menu.classList.add('hidden');
+    
+    if(currentGameMode === "SPACE_ATTACK") {
+        // Auto-shoot for space mode
+        shootInterval = setInterval(() => {
+            if(gameActive) player.bullets.push(new Bullet(player.x + player.w/2, player.y));
+        }, 300);
+    }
+    
     animate();
     spawnLoop();
 }
 
+let shootInterval;
 function spawnLoop() {
     if(!gameActive) return;
     items.push(new Item());
-    setTimeout(spawnLoop, Math.max(300, 1000 / speedMultiplier));
+    setTimeout(spawnLoop, 1000 / speedMultiplier);
 }
 
-// Mobile Drag Controls
 window.addEventListener('touchmove', (e) => {
     if(!gameActive) return;
-    let touchX = e.touches[0].clientX;
-    player.x = touchX - player.w / 2;
-    // Boundary check
-    if(player.x < 0) player.x = 0;
-    if(player.x > width - player.w) player.x = width - player.w;
+    player.x = e.touches[0].clientX - player.w/2;
 });
 
 function animate() {
-    if(!gameActive) return;
-    ctx.fillStyle = 'rgba(1, 1, 5, 0.3)'; // Motion blur effect
-    ctx.fillRect(0, 0, width, height);
+    if(!gameActive) { clearInterval(shootInterval); return; }
+    ctx.fillStyle = 'rgba(1,1,5,0.4)';
+    ctx.fillRect(0,0,width,height);
 
     player.draw();
 
+    // Space Attack Bullet Logic
+    if(currentGameMode === "SPACE_ATTACK") {
+        player.bullets.forEach((b, bi) => {
+            b.update(); b.draw();
+            if(b.y < 0) player.bullets.splice(bi, 1);
+        });
+    }
+
     items.forEach((item, index) => {
         item.update();
+        item.draw();
 
-        // Collision detection
-        if (item.y + item.size > player.y && 
-            item.x < player.x + player.w && 
-            item.x + item.size > player.x) {
-            
-            if(item.type === 'coin') {
-                coins += 5;
-                coinVal.innerText = coins;
-            } else {
-                score += 10;
-                scoreVal.innerText = score;
-                // Level up logic
-                if(score % 200 === 0) {
-                    level++;
-                    levelVal.innerText = level;
-                    speedMultiplier += 0.15;
-                    if(window.navigator.vibrate) window.navigator.vibrate(50);
-                }
-            }
-            items.splice(index, 1);
-        }
-
-        // Game Over
-        if(item.y > height) {
-            if(item.type === 'point') {
-                gameOver();
-            } else {
+        // SKY GUARD Collision (Catching)
+        if (currentGameMode === "SKY_GUARD") {
+            if (item.y + item.size > player.y && item.x < player.x + player.w && item.x + item.size > player.x) {
+                score += 10; scoreVal.innerText = score;
                 items.splice(index, 1);
+                speedMultiplier += 0.05;
             }
+            if(item.y > height) gameOver();
+        } 
+        
+        // SPACE ATTACK Collision (Shooting)
+        else {
+            player.bullets.forEach((b, bi) => {
+                if(b.x > item.x && b.x < item.x + 30 && b.y < item.y + 30) {
+                    score += 20; scoreVal.innerText = score;
+                    items.splice(index, 1);
+                    player.bullets.splice(bi, 1);
+                }
+            });
+            if(item.y + 20 > player.y && item.x < player.x + player.w && item.x + 20 > player.x) gameOver();
+            if(item.y > height) items.splice(index, 1);
         }
     });
 
@@ -227,14 +228,9 @@ function animate() {
 
 function gameOver() {
     gameActive = false;
-    if(window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
-    alert("MISSION TERMINATED\nFinal Score: " + score);
+    alert("GAME OVER! Score: " + score);
     menu.classList.remove('hidden');
-    document.getElementById('bestScore').innerText = "BEST RECORD: " + score;
 }
-
-// GitHub Update Fix: Hard Reset trigger
-console.log("Sky Guard Ultimate v2.1.0 Loaded. If you don't see changes, Clear Browser Cache.");
 </script>
 </body>
 </html>
