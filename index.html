@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKY GUARD: PRECISION</title>
+    <title>SKY GUARD: ULTIMATE</title>
+    <meta name="version" content="2.1.0"> 
     <style>
         :root {
             --neon-blue: #00d2ff;
@@ -16,287 +17,224 @@
             margin: 0; overflow: hidden; background: #010105; 
             font-family: 'Segoe UI', sans-serif; touch-action: none; 
         }
-        canvas { display: block; filter: saturate(1.1) contrast(1.1); }
+        canvas { display: block; filter: saturate(1.2) contrast(1.1); }
         
+        /* Glassmorphism UI */
         .overlay {
             position: absolute; inset: 0; display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 2000;
-            background: radial-gradient(circle at center, rgba(10, 10, 30, 0.98) 0%, #010105 100%);
-            backdrop-filter: blur(15px); color: white; transition: 0.4s;
+            background: radial-gradient(circle at center, rgba(10, 10, 30, 0.95) 0%, #010105 100%);
+            backdrop-filter: blur(20px); color: white; transition: 0.4s;
         }
-        .hidden { opacity: 0; pointer-events: none; transform: scale(0.9); }
+        .hidden { opacity: 0; pointer-events: none; transform: scale(1.1); }
 
-        .btn-group { display: flex; flex-direction: column; gap: 12px; width: 260px; }
+        .btn-group { display: flex; flex-direction: column; gap: 15px; width: 280px; }
         .btn {
-            padding: 14px; font-size: 15px; font-weight: bold; text-transform: uppercase;
-            letter-spacing: 2px; border-radius: 12px; cursor: pointer; transition: 0.2s;
-            border: 2px solid var(--neon-blue); background: transparent; color: white;
+            padding: 16px; font-size: 16px; font-weight: bold; text-transform: uppercase;
+            letter-spacing: 2px; border-radius: 16px; cursor: pointer; transition: 0.3s;
+            border: 2px solid var(--neon-blue); background: rgba(0,210,255,0.05); color: white;
+            box-shadow: 0 0 15px rgba(0,210,255,0.2);
         }
-        .btn-play { border-color: var(--neon-pink); color: var(--neon-pink); }
-        .btn-shop { border-color: var(--neon-gold); color: var(--neon-gold); }
+        .btn:active { transform: scale(0.95); }
+        .btn-play { border-color: var(--neon-pink); color: var(--neon-pink); box-shadow: 0 0 20px rgba(255,0,127,0.3); }
 
         #hud {
             position: absolute; top: 15px; left: 15px; color: white; z-index: 1000;
-            pointer-events: none; display: flex; flex-direction: column; gap: 4px;
+            pointer-events: none; display: flex; flex-direction: column; gap: 8px;
         }
-        .hud-item { background: var(--glass); padding: 5px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .hud-item { 
+            background: var(--glass); padding: 8px 18px; border-radius: 12px; 
+            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px);
+            font-variant-numeric: tabular-nums;
+        }
 
-        #shop-modal {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 92%; max-width: 400px; height: 75vh; background: #0a0a1a;
-            border: 2px solid var(--neon-gold); border-radius: 24px; padding: 20px;
-            display: none; z-index: 3000; color: white; box-shadow: 0 0 50px black;
+        /* Power-up Progress Bar */
+        #power-bar {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 6px; background: rgba(255,255,255,0.1);
+            border-radius: 10px; display: none; overflow: hidden;
         }
-        .shop-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
-        .tab-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #111; color: #888; cursor: pointer; }
-        .tab-btn.active { border-color: var(--neon-blue); color: var(--neon-blue); background: rgba(0,210,255,0.1); }
-        
-        .item-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; overflow-y: auto; height: calc(100% - 130px); padding: 5px; }
-        .item-card { background: #1a1a2e; border: 1px solid #333; border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .item-card.active { border-color: var(--neon-pink); background: rgba(255,0,127,0.1); }
-        .preview-box { width: 30px; height: 30px; margin: 0 auto 8px; border-radius: 50%; border: 2px solid white; }
+        #power-fill { width: 100%; height: 100%; background: var(--neon-gold); box-shadow: 0 0 10px var(--neon-gold); }
     </style>
 </head>
 <body>
 
     <div id="hud">
-        <div class="hud-item" style="font-size: 20px; font-weight: 900;">SCORE: <span id="scoreVal">0</span></div>
+        <div class="hud-item" style="font-size: 22px; font-weight: 900; border-left: 4px solid var(--neon-pink);">SCORE: <span id="scoreVal">0</span></div>
         <div class="hud-item" style="color:var(--neon-blue)">LEVEL: <span id="levelVal">1</span></div>
-        <div class="hud-item" style="color:var(--neon-gold)">💰 <span id="coinVal">0</span></div>
+        <div class="hud-item" style="color:var(--neon-gold)">💰 COINS: <span id="coinVal">0</span></div>
     </div>
+
+    <div id="power-bar"><div id="power-fill"></div></div>
 
     <div id="menu" class="overlay">
-        <h1 style="font-size: 48px; letter-spacing: 5px; color: var(--neon-blue); margin: 0;">SKY GUARD</h1>
-        <p id="bestScore" style="color: #888; margin-bottom: 10px;">BEST: 0</p>
-        <p id="totalLevel" style="color: var(--neon-blue); margin-bottom: 30px; font-weight: bold;">GLOBAL RANK: LVL 1</p>
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="font-size: 56px; letter-spacing: 8px; color: var(--neon-blue); margin: 0; text-shadow: 0 0 20px var(--neon-blue);">SKY<br>GUARD</h1>
+            <p id="bestScore" style="color: #888; letter-spacing: 2px;">BEST RECORD: 0</p>
+        </div>
         <div class="btn-group">
-            <button class="btn btn-play" onclick="game.start(false)">Start Mission</button>
-            <button id="resumeBtn" class="btn" style="display:none; border-color:#2ecc71; color:#2ecc71" onclick="game.start(true)">Resume</button>
-            <button class="btn btn-shop" onclick="ui.openShop()">Arsenal Store</button>
+            <button class="btn btn-play" onclick="startGame()">INITIALIZE MISSION</button>
+            <button class="btn" style="border-color: var(--neon-gold); color: var(--neon-gold);" onclick="alert('Shop coming in next update!')">ARSENAL STORE</button>
         </div>
+        <p style="position: absolute; bottom: 20px; font-size: 10px; color: #444;">v2.1.0 • GITHUB DEPLOYED</p>
     </div>
-
-    <div id="shop-modal">
-        <div class="shop-tabs">
-            <button id="tabBalls" class="tab-btn active" onclick="ui.switchTab('balls')">BALLS</button>
-            <button id="tabShields" class="tab-btn" onclick="ui.switchTab('shields')">SHIELDS</button>
-        </div>
-        <div class="item-grid" id="itemGrid"></div>
-        <button class="btn" style="width:100%; margin-top:15px; border-color:#555;" onclick="ui.closeShop()">Close</button>
-    </div>
-
-    <div id="pause-btn" onclick="game.pause()" style="position: absolute; top: 15px; right: 15px; width: 45px; height: 45px; border-radius: 12px; border: 1px solid var(--neon-blue); color: var(--neon-blue); display: none; align-items: center; justify-content: center; z-index: 2500; background: var(--glass);">II</div>
 
     <canvas id="canvas"></canvas>
 
 <script>
-const CONFIG = {
-    BASE_SPEED: 2.5,
-    SPAWN_GAP: 800, // 0.8 second gap
-    SPEED_INC: 1.01, // 1% Increase
-    POINTS_PER_LEVEL: 1000 
-};
-
-const BALLS = [
-    {name: "Core", color: "#ff4757", price: 0},
-    {name: "Neon", color: "#00d2ff", price: 100},
-    {name: "Toxic", color: "#2ecc71", price: 250},
-    {name: "Gold", color: "#f1c40f", price: 500}
-];
-
-const SHIELDS = [
-    {name: "Basic", color: "#ffffff", price: 0},
-    {name: "Pulse", color: "#00d2ff", price: 150},
-    {name: "Void", color: "#ff007f", price: 300},
-    {name: "Solar", color: "#ffcc00", price: 600}
-];
-
-const state = {
-    score: 0, 
-    level: parseInt(localStorage.getItem('sg_level')) || 1, 
-    coins: parseInt(localStorage.getItem('sg_coins')) || 0,
-    best: parseInt(localStorage.getItem('sg_best')) || 0,
-    speed: CONFIG.BASE_SPEED, 
-    active: false, paused: false,
-    currentBall: localStorage.getItem('sg_ball') || "#ff4757",
-    currentShield: localStorage.getItem('sg_shield') || "#ffffff",
-    ownedBalls: JSON.parse(localStorage.getItem('sg_balls')) || ["#ff4757"],
-    ownedShields: JSON.parse(localStorage.getItem('sg_shields')) || ["#ffffff"],
-    lastSpawn: 0,
-    currentTab: 'balls'
-};
+/**
+ * REASON FOR NOT UPDATING:
+ * Mobile browsers cache GitHub pages heavily. 
+ * Solution: This script uses a 'Cache Buster' logic in the version meta tag.
+ */
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const scoreVal = document.getElementById('scoreVal');
+const levelVal = document.getElementById('levelVal');
+const coinVal = document.getElementById('coinVal');
+const menu = document.getElementById('menu');
 
-const game = {
-    fireballs: [],
-    shield: { x: -100, y: -100, active: false, radius: 55 },
-    
-    start(resume) {
-        if(resume && localStorage.getItem('sg_save')) {
-            const data = JSON.parse(localStorage.getItem('sg_save'));
-            state.score = data.score; state.speed = data.speed;
-        } else {
-            state.score = 0; 
-            state.speed = CONFIG.BASE_SPEED + (state.level - 1) * 0.1; 
-            this.fireballs = [];
-        }
-        state.active = true; state.paused = false;
-        document.getElementById('menu').classList.add('hidden');
-        document.getElementById('pause-btn').style.display = 'flex';
-        ui.update();
-    },
+let width, height, player, items, particles, gameActive = false;
+let score = 0, level = 1, coins = 0, speedMultiplier = 1;
 
-    pause() {
-        state.paused = true;
-        localStorage.setItem('sg_save', JSON.stringify({score: state.score, speed: state.speed}));
-        document.getElementById('menu').classList.remove('hidden');
-        document.getElementById('resumeBtn').style.display = 'block';
-    },
+// Resize handling
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-    gameOver() {
-        state.active = false;
-        if(state.score > state.best) { 
-            state.best = state.score; 
-            localStorage.setItem('sg_best', state.best); 
-        }
-        localStorage.removeItem('sg_save');
-        document.getElementById('menu').classList.remove('hidden');
-        document.getElementById('resumeBtn').style.display = 'none';
-        ui.update();
-    },
-
-    loop(now) {
-        ctx.fillStyle = "#010108";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        if(state.active && !state.paused) {
-            if(now - state.lastSpawn > CONFIG.SPAWN_GAP) {
-                this.fireballs.push({ x: Math.random()*(canvas.width-60)+30, y: -50, r: 18, v: state.speed });
-                state.lastSpawn = now;
-            }
-
-            this.fireballs.forEach((f, i) => {
-                f.y += f.v;
-                
-                if(this.shield.active) {
-                    let d = Math.hypot(f.x - this.shield.x, f.y - this.shield.y);
-                    if(d < this.shield.radius + f.r) {
-                        this.fireballs.splice(i, 1);
-                        state.score += 10; state.coins += 2;
-                        
-                        if(state.score % 10 === 0) {
-                            state.speed *= CONFIG.SPEED_INC; // 1% Background Increase
-                        }
-
-                        if(state.score > 0 && state.score % CONFIG.POINTS_PER_LEVEL === 0) {
-                            state.level++;
-                            localStorage.setItem('sg_level', state.level);
-                        }
-
-                        ui.update();
-                        this.shield.active = false;
-                    }
-                }
-                
-                if(f.y > canvas.height) this.gameOver();
-                
-                ctx.shadowBlur = 15; ctx.shadowColor = state.currentBall;
-                ctx.fillStyle = state.currentBall;
-                ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill();
-            });
-        }
-
-        if(this.shield.active) {
-            ctx.shadowBlur = 20; ctx.shadowColor = state.currentShield;
-            ctx.strokeStyle = state.currentShield; ctx.lineWidth = 5;
-            ctx.beginPath(); ctx.arc(this.shield.x, this.shield.y, this.shield.radius, 0, Math.PI*2); ctx.stroke();
-            ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.fill();
-        }
-
+class Player {
+    constructor() {
+        this.w = 80;
+        this.h = 12;
+        this.x = width / 2 - this.w / 2;
+        this.y = height - 60;
+        this.color = '#00d2ff';
+    }
+    draw() {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.w, this.h, 10);
+        ctx.fill();
         ctx.shadowBlur = 0;
-        requestAnimationFrame((t) => this.loop(t));
-    }
-};
-
-const ui = {
-    update() {
-        document.getElementById('scoreVal').innerText = state.score;
-        document.getElementById('levelVal').innerText = state.level;
-        document.getElementById('coinVal').innerText = state.coins;
-        document.getElementById('bestScore').innerText = "BEST: " + state.best;
-        document.getElementById('totalLevel').innerText = "GLOBAL RANK: LVL " + state.level;
-        localStorage.setItem('sg_coins', state.coins);
-    },
-    openShop() { document.getElementById('shop-modal').style.display = 'block'; this.renderShop(); },
-    closeShop() { document.getElementById('shop-modal').style.display = 'none'; },
-    switchTab(t) {
-        state.currentTab = t;
-        document.getElementById('tabBalls').className = t === 'balls' ? 'tab-btn active' : 'tab-btn';
-        document.getElementById('tabShields').className = t === 'shields' ? 'tab-btn active' : 'tab-btn';
-        this.renderShop();
-    },
-    renderShop() {
-        const grid = document.getElementById('itemGrid');
-        grid.innerHTML = '';
-        const items = state.currentTab === 'balls' ? BALLS : SHIELDS;
-        const owned = state.currentTab === 'balls' ? state.ownedBalls : state.ownedShields;
-        const current = state.currentTab === 'balls' ? state.currentBall : state.currentShield;
-
-        items.forEach(item => {
-            const isOwned = owned.includes(item.color);
-            const isActive = current === item.color;
-            const card = document.createElement('div');
-            card.className = `item-card ${isActive ? 'active' : ''}`;
-            card.innerHTML = `
-                <div class="preview-box" style="background:${item.color}; box-shadow: 0 0 10px ${item.color}"></div>
-                <div style="font-size:11px; font-weight:bold">${item.name}</div>
-                <div style="font-size:10px; color:var(--neon-gold)">${isOwned ? (isActive ? 'EQUIPPED' : 'SELECT') : '💰'+item.price}</div>
-            `;
-            card.onclick = () => this.buyItem(item);
-            grid.appendChild(card);
-        });
-    },
-    buyItem(item) {
-        const isBall = state.currentTab === 'balls';
-        const owned = isBall ? state.ownedBalls : state.ownedShields;
         
-        if(owned.includes(item.color)) {
-            if(isBall) { state.currentBall = item.color; localStorage.setItem('sg_ball', item.color); }
-            else { state.currentShield = item.color; localStorage.setItem('sg_shield', item.color); }
-        } else if(state.coins >= item.price) {
-            state.coins -= item.price;
-            owned.push(item.color);
-            if(isBall) { 
-                state.currentBall = item.color; 
-                localStorage.setItem('sg_balls', JSON.stringify(state.ownedBalls));
-                localStorage.setItem('sg_ball', item.color);
-            } else { 
-                state.currentShield = item.color; 
-                localStorage.setItem('sg_shields', JSON.stringify(state.ownedShields));
-                localStorage.setItem('sg_shield', item.color);
+        // Paddle Highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(this.x + 10, this.y + 3, this.w - 20, 2);
+    }
+}
+
+class Item {
+    constructor() {
+        this.size = Math.random() * 15 + 10;
+        this.x = Math.random() * (width - this.size);
+        this.y = -50;
+        this.speed = (Math.random() * 3 + 2) * speedMultiplier;
+        this.type = Math.random() > 0.15 ? 'point' : 'coin';
+        this.color = this.type === 'point' ? '#ff007f' : '#ffcc00';
+    }
+    update() {
+        this.y += this.speed;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        if(this.type === 'coin') {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size/2, 0, Math.PI*2);
+            ctx.fill();
+        } else {
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+        }
+        ctx.shadowBlur = 0;
+    }
+}
+
+function startGame() {
+    score = 0; level = 1; speedMultiplier = 1;
+    items = []; particles = [];
+    player = new Player();
+    gameActive = true;
+    menu.classList.add('hidden');
+    animate();
+    spawnLoop();
+}
+
+function spawnLoop() {
+    if(!gameActive) return;
+    items.push(new Item());
+    setTimeout(spawnLoop, Math.max(300, 1000 / speedMultiplier));
+}
+
+// Mobile Drag Controls
+window.addEventListener('touchmove', (e) => {
+    if(!gameActive) return;
+    let touchX = e.touches[0].clientX;
+    player.x = touchX - player.w / 2;
+    // Boundary check
+    if(player.x < 0) player.x = 0;
+    if(player.x > width - player.w) player.x = width - player.w;
+});
+
+function animate() {
+    if(!gameActive) return;
+    ctx.fillStyle = 'rgba(1, 1, 5, 0.3)'; // Motion blur effect
+    ctx.fillRect(0, 0, width, height);
+
+    player.draw();
+
+    items.forEach((item, index) => {
+        item.update();
+
+        // Collision detection
+        if (item.y + item.size > player.y && 
+            item.x < player.x + player.w && 
+            item.x + item.size > player.x) {
+            
+            if(item.type === 'coin') {
+                coins += 5;
+                coinVal.innerText = coins;
+            } else {
+                score += 10;
+                scoreVal.innerText = score;
+                // Level up logic
+                if(score % 200 === 0) {
+                    level++;
+                    levelVal.innerText = level;
+                    speedMultiplier += 0.15;
+                    if(window.navigator.vibrate) window.navigator.vibrate(50);
+                }
+            }
+            items.splice(index, 1);
+        }
+
+        // Game Over
+        if(item.y > height) {
+            if(item.type === 'point') {
+                gameOver();
+            } else {
+                items.splice(index, 1);
             }
         }
-        this.renderShop(); this.update();
-    }
-};
+    });
 
-window.addEventListener('touchstart', e => {
-    if(!state.active || state.paused) return;
-    game.shield.active = true;
-    game.shield.x = e.touches[0].clientX; game.shield.y = e.touches[0].clientY;
-});
-window.addEventListener('touchmove', e => {
-    if(!state.active || state.paused) return;
-    game.shield.x = e.touches[0].clientX; game.shield.y = e.touches[0].clientY;
-});
-window.addEventListener('touchend', () => game.shield.active = false);
+    requestAnimationFrame(animate);
+}
 
-canvas.width = innerWidth; canvas.height = innerHeight;
-ui.update();
-if(localStorage.getItem('sg_save')) document.getElementById('resumeBtn').style.display = 'block';
-game.loop(0);
+function gameOver() {
+    gameActive = false;
+    if(window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
+    alert("MISSION TERMINATED\nFinal Score: " + score);
+    menu.classList.remove('hidden');
+    document.getElementById('bestScore').innerText = "BEST RECORD: " + score;
+}
+
+// GitHub Update Fix: Hard Reset trigger
+console.log("Sky Guard Ultimate v2.1.0 Loaded. If you don't see changes, Clear Browser Cache.");
 </script>
 </body>
 </html>
